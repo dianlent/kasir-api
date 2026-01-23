@@ -1,0 +1,155 @@
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"strconv"
+	"strings"
+)
+
+type Produk struct {
+	ID    int	`json:"id"`
+	Nama  string `json:"nama"`
+	Harga int    `json:"harga"`
+	Stok  int    `json:"stok"`
+}
+
+var produk = []Produk{
+	{ID: 1, Nama: "Indomie Rebus", Harga: 3500, Stok: 10},
+	{ID: 2, Nama: "Kecap Bango", Harga: 20000, Stok: 15},
+	{ID: 3, Nama: "Susu Ultra", Harga: 15000, Stok: 8},
+}
+
+func GetprodukByID(w http.ResponseWriter, r *http.Request) {
+	idStr := strings.TrimPrefix(r.URL.Path, "/api/produk/")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "Invalid Produk ID", http.StatusBadRequest)
+		return
+	}
+
+	for _, p := range produk {
+		if p.ID == id {
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(p)
+			return
+		}
+	}
+	http.Error(w, "Produk tidak ditemukan", http.StatusNotFound)
+}
+
+// PUT /api/produk/{id}
+func updateProdukByID(w http.ResponseWriter, r *http.Request) {
+	// GET id dari request
+	idStr := strings.TrimPrefix(r.URL.Path, "/api/produk/")
+	// Ganti int
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "Invalid Produk ID", http.StatusBadRequest)
+		return
+	}
+
+	// GET data dari request
+	var updatedProduk Produk
+	if err := json.NewDecoder(r.Body).Decode(&updatedProduk); err != nil {
+		http.Error(w, "Invalid Request Body", http.StatusBadRequest)
+		return
+	}
+
+	// Loop produk, Cari ID yang sesuai request
+	for i, p := range produk {
+		if p.ID == id {
+			updatedProduk.ID = id
+			produk[i] = updatedProduk
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(updatedProduk)
+			return
+		}
+	}
+	http.Error(w, "Produk tidak ditemukan", http.StatusNotFound)
+}
+func deleteProduk(w http.ResponseWriter, r *http.Request) {
+	// GET id
+	idStr := strings.TrimPrefix(r.URL.Path, "/api/produk/")
+		
+	// ganti int
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "Invalid Produk ID", http.StatusBadRequest)
+		return
+	}
+	// Loop produk cari ID, dapat index yang dihapus
+	for i, p := range produk {
+		if p.ID == id {
+			// bikin slice baru dengan data sebelu dan sesudah index
+			produk = append(produk[:i], produk[i+1:]...)
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(produk)
+			return
+		}
+	}
+	http.Error(w, "Produk tidak ditemukan", http.StatusNotFound)
+}
+	
+
+
+func main() {
+	
+	// GET localhost:8080/api/produk/{id}
+	// PUT localhost:8080/api/produk/{id}
+	// DELETE localhost:8080/api/produk/{id}
+	
+
+	http.HandleFunc("/api/produk/", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "GET" {
+			GetprodukByID(w, r)
+		} else if r.Method == "PUT" {
+			updateProdukByID(w, r)
+		} else if r.Method == "DELETE" {
+			deleteProduk(w, r)
+		}
+		
+	})
+
+	//Get localhost:8080/api/produk
+	//POST localhost:8080/api/produk
+	http.HandleFunc("/api/produk", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "GET" {
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(produk)
+			return
+
+		} else if r.Method == "POST" {
+			//Baca dari Request Body
+			//Masukan data ke variabel produk
+			var produkBaru Produk
+			if err := json.NewDecoder(r.Body).Decode(&produkBaru); err != nil {
+				http.Error(w, "Invalid Request", http.StatusBadRequest)
+				return
+			}
+
+			//Masukan ke dalam variabel produk
+			produkBaru.ID = len(produk) + 1
+			produk = append(produk, produkBaru)
+			w.Header().Set("Content-Type", "application/json")	
+			w.WriteHeader(http.StatusCreated) //201
+			_ = json.NewEncoder(w).Encode(produkBaru)
+			return
+		}
+
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+	})
+
+	//Localhost:8080/health
+	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{"status": "healthy", "message": "Service API is running smoothly"})
+	})
+
+	fmt.Println("Starting server on Localhost:8080")
+	err := http.ListenAndServe(":8080", nil)
+	if err != nil {
+		fmt.Println("Server failed to start:", err)
+	}
+}
