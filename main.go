@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -137,10 +139,31 @@ func updateKategori(w http.ResponseWriter, r *http.Request) {
 
 	// GET data dari request
 	var updatedKategori Kategori
-	if err := json.NewDecoder(r.Body).Decode(&updatedKategori); err != nil {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, "Gagal membaca request body", http.StatusBadRequest)
+		return
+	}
+	if len(bytes.TrimSpace(body)) == 0 {
+		http.Error(w, "Request body kosong", http.StatusBadRequest)
+		return
+	}
+
+	if err := json.Unmarshal(body, &updatedKategori); err != nil {
+		// Fallback: support form data (application/x-www-form-urlencoded)
+		r.Body = io.NopCloser(bytes.NewReader(body))
+		if err := r.ParseForm(); err == nil {
+			updatedKategori.Nama = r.FormValue("nama")
+			updatedKategori.Deskripsi = r.FormValue("deskripsi")
+			if updatedKategori.Nama != "" || updatedKategori.Deskripsi != "" {
+				goto kategoriOK
+			}
+		}
 		http.Error(w, "Invalid Request Body", http.StatusBadRequest)
 		return
 	}
+
+kategoriOK:
 
 	// Loop produk, Cari ID yang sesuai request
 	for i, p := range kategori {
