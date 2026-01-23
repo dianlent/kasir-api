@@ -76,7 +76,7 @@ func updateProdukByID(w http.ResponseWriter, r *http.Request) {
 			updatedProduk.ID = id
 			produk[i] = updatedProduk
 			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(updatedProduk)
+			_ = json.NewEncoder(w).Encode(map [string]string{"message": "Produk berhasil ditambahkan"})
 			return
 		}
 	}
