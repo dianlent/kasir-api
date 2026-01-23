@@ -1,10 +1,8 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -47,65 +45,74 @@ func GetprodukByID(w http.ResponseWriter, r *http.Request) {
 	for _, p := range produk {
 		if p.ID == id {
 			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(p)
+			json.NewEncoder(w).Encode(p)
 			return
 		}
 	}
 	http.Error(w, "Produk tidak ditemukan", http.StatusNotFound)
 }
 
-// PUT /api/produk/{id}
-func updateProdukByID(w http.ResponseWriter, r *http.Request) {
-	// GET id dari request
+// PUT localhost:8080/api/produk/{id}
+func updateProduk(w http.ResponseWriter, r *http.Request) {
+	// get id dari request
 	idStr := strings.TrimPrefix(r.URL.Path, "/api/produk/")
-	// Ganti int
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		http.Error(w, "Invalid Produk ID", http.StatusBadRequest)
-		return
-	}
 
-	// GET data dari request
-	var updatedProduk Produk
-	if err := json.NewDecoder(r.Body).Decode(&updatedProduk); err != nil {
-		http.Error(w, "Invalid Request Body", http.StatusBadRequest)
-		return
-	}
-
-	// Loop produk, Cari ID yang sesuai request
-	for i, p := range produk {
-		if p.ID == id {
-			updatedProduk.ID = id
-			produk[i] = updatedProduk
-			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(map [string]string{"message": "Produk berhasil ditambahkan"})
-			return
-		}
-	}
-	http.Error(w, "Produk tidak ditemukan", http.StatusNotFound)
-}
-
-func deleteProduk(w http.ResponseWriter, r *http.Request) {
-	// GET id
-	idStr := strings.TrimPrefix(r.URL.Path, "/api/produk/")
-		
 	// ganti int
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
 		http.Error(w, "Invalid Produk ID", http.StatusBadRequest)
 		return
 	}
-	// Loop produk cari ID, dapat index yang dihapus
-	for i, p := range produk {
-		if p.ID == id {
-			// bikin slice baru dengan data sebelu dan sesudah index
-			produk = append(produk[:i], produk[i+1:]...)
+
+	// get data dari request
+	var updateProduk Produk
+	err = json.NewDecoder(r.Body).Decode(&updateProduk)
+	if err != nil {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+
+	// loop produk, cari id, ganti sesuai data dari request
+	for i := range produk {
+		if produk[i].ID == id {
+			updateProduk.ID = id
+			produk[i] = updateProduk
+
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]string{"message": "Produk berhasil dihapus"})
+			json.NewEncoder(w).Encode(updateProduk)
 			return
 		}
 	}
-	http.Error(w, "Produk tidak ditemukan", http.StatusNotFound)
+	
+	http.Error(w, "Produk belum ada", http.StatusNotFound)
+}
+
+func deleteProduk(w http.ResponseWriter, r *http.Request) {
+	// get id
+	idStr := strings.TrimPrefix(r.URL.Path, "/api/produk/")
+	
+	// ganti id int
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "Invalid Produk ID", http.StatusBadRequest)
+		return
+	}
+	
+	// loop produk cari ID, dapet index yang mau dihapus
+	for i, p := range produk {
+		if p.ID == id {
+			// bikin slice baru dengan data sebelum dan sesudah index
+			produk = append(produk[:i], produk[i+1:]...)
+			
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]string{
+				"message": "sukses delete",
+			})
+			return
+		}
+	}
+
+	http.Error(w, "Produk belum ada", http.StatusNotFound)
 }
 	
 func getKategori(w http.ResponseWriter, r *http.Request) {
@@ -139,33 +146,12 @@ func updateKategori(w http.ResponseWriter, r *http.Request) {
 
 	// GET data dari request
 	var updatedKategori Kategori
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, "Gagal membaca request body", http.StatusBadRequest)
-		return
-	}
-	if len(bytes.TrimSpace(body)) == 0 {
-		http.Error(w, "Request body kosong", http.StatusBadRequest)
-		return
-	}
-
-	if err := json.Unmarshal(body, &updatedKategori); err != nil {
-		// Fallback: support form data (application/x-www-form-urlencoded)
-		r.Body = io.NopCloser(bytes.NewReader(body))
-		if err := r.ParseForm(); err == nil {
-			updatedKategori.Nama = r.FormValue("nama")
-			updatedKategori.Deskripsi = r.FormValue("deskripsi")
-			if updatedKategori.Nama != "" || updatedKategori.Deskripsi != "" {
-				goto kategoriOK
-			}
-		}
+	if err := json.NewDecoder(r.Body).Decode(&updatedKategori); err != nil {
 		http.Error(w, "Invalid Request Body", http.StatusBadRequest)
 		return
 	}
 
-kategoriOK:
-
-	// Loop produk, Cari ID yang sesuai request
+	// Loop kategori, Cari ID yang sesuai request
 	for i, p := range kategori {
 		if p.ID == id {
 			updatedKategori.ID = id
@@ -213,7 +199,7 @@ func main() {
 		if r.Method == "GET" {
 			GetprodukByID(w, r)
 		} else if r.Method == "PUT" {
-			updateProdukByID(w, r)
+			updateProduk(w, r)
 		} else if r.Method == "DELETE" {
 			deleteProduk(w, r)
 		}
@@ -226,11 +212,9 @@ func main() {
 		if r.Method == "GET" {
 			w.Header().Set("Content-Type", "application/json")
 			_ = json.NewEncoder(w).Encode(produk)
-			return
-
+			
 		} else if r.Method == "POST" {
 			//Baca dari Request Body
-			//Masukan data ke variabel produk
 			var produkBaru Produk
 			if err := json.NewDecoder(r.Body).Decode(&produkBaru); err != nil {
 				http.Error(w, "Invalid Request", http.StatusBadRequest)
@@ -243,20 +227,15 @@ func main() {
 			w.Header().Set("Content-Type", "application/json")	
 			w.WriteHeader(http.StatusCreated) //201
 			_ = json.NewEncoder(w).Encode(produkBaru)
-			return
 		}
-
-		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 	})
 
-	// Get localhost:8080/api/produk
-	// POST localhost:8080/api/produk
+	// Get localhost:8080/api/kategori
+	// POST localhost:8080/api/kategori
 	http.HandleFunc("/api/kategori", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "GET" {
 			w.Header().Set("Content-Type", "application/json")
 			_ = json.NewEncoder(w).Encode(kategori)
-			return
-
 		} else if r.Method == "POST" {
 			//Baca dari Request Body
 			//Masukan data ke variabel kategori
@@ -272,10 +251,7 @@ func main() {
 			w.Header().Set("Content-Type", "application/json")	
 			w.WriteHeader(http.StatusCreated) //201
 			_ = json.NewEncoder(w).Encode(kategoriBaru)
-			return
 		}
-		
-		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 	}	)
 
 	// GET localhost:8080/api/kategori/{id}
