@@ -126,7 +126,7 @@ func getKategori(w http.ResponseWriter, r *http.Request) {
 	for _, p := range kategori {
 		if p.ID == id {
 			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(kategori)
+			json.NewEncoder(w).Encode(kategori)
 			return
 		}
 	}
@@ -157,7 +157,7 @@ func updateKategori(w http.ResponseWriter, r *http.Request) {
 			updatedKategori.ID = id
 			kategori[i] = updatedKategori
 			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(updatedKategori)
+			json.NewEncoder(w).Encode(updatedKategori)
 			return
 		}
 	}
@@ -211,7 +211,7 @@ func main() {
 	http.HandleFunc("/api/produk", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "GET" {
 			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(produk)
+			json.NewEncoder(w).Encode(produk)
 			
 		} else if r.Method == "POST" {
 			//Baca dari Request Body
@@ -226,7 +226,7 @@ func main() {
 			produk = append(produk, produkBaru)
 			w.Header().Set("Content-Type", "application/json")	
 			w.WriteHeader(http.StatusCreated) //201
-			_ = json.NewEncoder(w).Encode(produkBaru)
+			json.NewEncoder(w).Encode(produkBaru)
 		}
 	})
 
@@ -250,7 +250,7 @@ func main() {
 			kategori = append(kategori, kategoriBaru)
 			w.Header().Set("Content-Type", "application/json")	
 			w.WriteHeader(http.StatusCreated) //201
-			_ = json.NewEncoder(w).Encode(kategoriBaru)
+			json.NewEncoder(w).Encode(kategoriBaru)
 		}
 	}	)
 
