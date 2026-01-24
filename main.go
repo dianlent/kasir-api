@@ -231,7 +231,7 @@ func main() {
 	// GET localhost:8080/api/kategori/{id}
 	// PUT localhost:8080/api/kategori/{id}
 	// DELETE localhost:8080/api/kategori/{id}
-	http.HandleFunc("/api/kategori", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/api/kategori/", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "GET" {
 			getKategori(w, r)
 		} else if r.Method == "PUT" {
