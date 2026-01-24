@@ -34,7 +34,7 @@ var kategori = []Kategori{
 	{ID: 3, Nama: "Bumbu Dapur", Deskripsi: "Bumbu-bumbu dapur untuk memasak"},
 }
 
-func GetprodukByID(w http.ResponseWriter, r *http.Request) {
+func getProdukByID(w http.ResponseWriter, r *http.Request) {
 	idStr := strings.TrimPrefix(r.URL.Path, "/api/produk/")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
@@ -145,8 +145,8 @@ func updateKategori(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// GET data dari request
-	var updatedKategori Kategori
-	if err := json.NewDecoder(r.Body).Decode(&updatedKategori); err != nil {
+	var updateKategori Kategori
+	if err := json.NewDecoder(r.Body).Decode(&updateKategori); err != nil {
 		http.Error(w, "Invalid Request Body", http.StatusBadRequest)
 		return
 	}
@@ -154,10 +154,10 @@ func updateKategori(w http.ResponseWriter, r *http.Request) {
 	// Loop kategori, Cari ID yang sesuai request
 	for i, p := range kategori {
 		if p.ID == id {
-			updatedKategori.ID = id
-			kategori[i] = updatedKategori
+			updateKategori.ID = id
+			kategori[i] = updateKategori
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(updatedKategori)
+			json.NewEncoder(w).Encode(updateKategori)
 			return
 		}
 	}
@@ -189,70 +189,43 @@ func deleteKategori(w http.ResponseWriter, r *http.Request) {
 
 
 func main() {
-	
 	// GET localhost:8080/api/produk/{id}
 	// PUT localhost:8080/api/produk/{id}
 	// DELETE localhost:8080/api/produk/{id}
-	
-
 	http.HandleFunc("/api/produk/", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "GET" {
-			GetprodukByID(w, r)
+			getProdukByID(w, r)
 		} else if r.Method == "PUT" {
 			updateProduk(w, r)
 		} else if r.Method == "DELETE" {
 			deleteProduk(w, r)
 		}
-		
 	})
 
-	//Get localhost:8080/api/produk
-	//POST localhost:8080/api/produk
+	// GET localhost:8080/api/produk
+	// POST localhost:8080/api/produk
 	http.HandleFunc("/api/produk", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "GET" {
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(produk)
-			
 		} else if r.Method == "POST" {
-			//Baca dari Request Body
+			// baca data dari request
 			var produkBaru Produk
-			if err := json.NewDecoder(r.Body).Decode(&produkBaru); err != nil {
-				http.Error(w, "Invalid Request", http.StatusBadRequest)
+			err := json.NewDecoder(r.Body).Decode(&produkBaru)
+			if err != nil {
+				http.Error(w, "Invalid request", http.StatusBadRequest)
 				return
 			}
 
-			//Masukan ke dalam variabel produk
+			// masukkin data ke dalam variable produk
 			produkBaru.ID = len(produk) + 1
 			produk = append(produk, produkBaru)
-			w.Header().Set("Content-Type", "application/json")	
-			w.WriteHeader(http.StatusCreated) //201
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusCreated) // 201
 			json.NewEncoder(w).Encode(produkBaru)
 		}
 	})
-
-	// Get localhost:8080/api/kategori
-	// POST localhost:8080/api/kategori
-	http.HandleFunc("/api/kategori", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == "GET" {
-			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(kategori)
-		} else if r.Method == "POST" {
-			//Baca dari Request Body
-			//Masukan data ke variabel kategori
-			var kategoriBaru Kategori
-			if err := json.NewDecoder(r.Body).Decode(&kategoriBaru); err != nil {
-				http.Error(w, "Invalid Request", http.StatusBadRequest)
-				return
-			}
-
-			//Masukan ke dalam variabel kategori
-			kategoriBaru.ID = len(kategori) + 1
-			kategori = append(kategori, kategoriBaru)
-			w.Header().Set("Content-Type", "application/json")	
-			w.WriteHeader(http.StatusCreated) //201
-			json.NewEncoder(w).Encode(kategoriBaru)
-		}
-	}	)
 
 	// GET localhost:8080/api/kategori/{id}
 	// PUT localhost:8080/api/kategori/{id}
@@ -265,21 +238,46 @@ func main() {
 		} else if r.Method == "DELETE" {
 			deleteKategori(w, r)
 		}
-
 	})
 
-	
+	// GET localhost:8080/api/kategori
+	// POST localhost:8080/api/kategori
+	http.HandleFunc("/api/kategori", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "GET" {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(kategori)
+		} else if r.Method == "POST" {
+			// baca data dari request
+			var kategoriBaru Kategori
+			err := json.NewDecoder(r.Body).Decode(&kategoriBaru)
+			if err != nil {
+				http.Error(w, "Invalid request", http.StatusBadRequest)
+				return
+			}
 
-	
-	//Localhost:8080/health
+			// masukkin data ke dalam variable produk
+			kategoriBaru.ID = len(kategori) + 1
+			kategori = append(kategori, kategoriBaru)
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusCreated) // 201
+			json.NewEncoder(w).Encode(kategoriBaru)
+		}
+	})
+
+	// localhost:8080/health
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{"status": "healthy", "message": "Service API is running smoothly"})
+		json.NewEncoder(w).Encode(map[string]string{
+			"status":  "OK",
+			"message": "API Running Smoothly",
+		})
 	})
 
-	fmt.Println("Starting server on Localhost:8080")
+	fmt.Println("Server running di localhost:8080")
+
 	err := http.ListenAndServe(":8080", nil)
 	if err != nil {
-		fmt.Println("Server failed to start:", err)
+		fmt.Println("gagal running server")
 	}
 }
