@@ -146,7 +146,7 @@ func updateKategori(w http.ResponseWriter, r *http.Request) {
 
 	// GET data dari request
 	var updateKategori Kategori
-	err := json.NewDecoder(r.Body).Decode(&updateKategori) 
+	err = json.NewDecoder(r.Body).Decode(&updateKategori) 
 	if err != nil {
 		http.Error(w, "Invalid Request Body", http.StatusBadRequest)
 		return
