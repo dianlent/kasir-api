@@ -123,10 +123,10 @@ func getKategori(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	for _, p := range kategori {
-		if p.ID == id {
+	for _, k := range kategori {
+		if k.ID == id {
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(kategori)
+			json.NewEncoder(w).Encode(k)
 			return
 		}
 	}
