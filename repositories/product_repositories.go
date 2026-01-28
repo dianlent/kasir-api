@@ -91,5 +91,18 @@ func (repo *ProductRepository) Delete(id int) error {
 		return errors.New("produk tidak ditemukan")
 	}
 
-	return err
+	var count int
+	err = repo.db.QueryRow("SELECT COUNT(*) FROM products").Scan(&count)
+	if err != nil {
+		return err
+	}
+
+	if count == 0 {
+		_, err = repo.db.Exec("SELECT setval(pg_get_serial_sequence('products', 'id'), 1, false)")
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
