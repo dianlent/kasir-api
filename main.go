@@ -3,24 +3,36 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"kasir-api/database"
+	"kasir-api/handlers"
+	"kasir-api/repositories"
+	"kasir-api/services"
+	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
+
+	"github.com/spf13/viper"
 )
 
 type Produk struct {
-	ID    int	`json:"id"`
+	ID    int    `json:"id"`
 	Nama  string `json:"nama"`
 	Harga int    `json:"harga"`
 	Stok  int    `json:"stok"`
 }
 
 type Kategori struct {
-	ID   int    `json:"id"`
-	Nama string `json:"nama"`
+	ID        int    `json:"id"`
+	Nama      string `json:"nama"`
 	Deskripsi string `json:"deskripsi"`
 }
 
+type Config struct {
+	Port   string `mapstructure:"PORT"`
+	DBConn string `mapstructure:"DB_CONN"`
+}
 
 var produk = []Produk{
 	{ID: 1, Nama: "Indomie Rebus", Harga: 3500, Stok: 10},
@@ -83,27 +95,27 @@ func updateProduk(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	
+
 	http.Error(w, "Produk belum ada", http.StatusNotFound)
 }
 
 func deleteProduk(w http.ResponseWriter, r *http.Request) {
 	// get id
 	idStr := strings.TrimPrefix(r.URL.Path, "/api/produk/")
-	
+
 	// ganti id int
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
 		http.Error(w, "Invalid Produk ID", http.StatusBadRequest)
 		return
 	}
-	
+
 	// loop produk cari ID, dapet index yang mau dihapus
 	for i, p := range produk {
 		if p.ID == id {
 			// bikin slice baru dengan data sebelum dan sesudah index
 			produk = append(produk[:i], produk[i+1:]...)
-			
+
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(map[string]string{
 				"message": "sukses delete",
@@ -114,7 +126,7 @@ func deleteProduk(w http.ResponseWriter, r *http.Request) {
 
 	http.Error(w, "Produk belum ada", http.StatusNotFound)
 }
-	
+
 func getKategori(w http.ResponseWriter, r *http.Request) {
 	idStr := strings.TrimPrefix(r.URL.Path, "/api/kategori/")
 	id, err := strconv.Atoi(idStr)
@@ -146,7 +158,7 @@ func updateKategori(w http.ResponseWriter, r *http.Request) {
 
 	// GET data dari request
 	var updateKategori Kategori
-	err = json.NewDecoder(r.Body).Decode(&updateKategori) 
+	err = json.NewDecoder(r.Body).Decode(&updateKategori)
 	if err != nil {
 		http.Error(w, "Invalid Request Body", http.StatusBadRequest)
 		return
@@ -168,7 +180,7 @@ func updateKategori(w http.ResponseWriter, r *http.Request) {
 func deleteKategori(w http.ResponseWriter, r *http.Request) {
 	// GET id
 	idStr := strings.TrimPrefix(r.URL.Path, "/api/kategori/")
-		
+
 	// ganti int
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
@@ -242,30 +254,36 @@ func handleKategoriCollection(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 }
 
-
 func main() {
-	// GET localhost:8080/api/produk/{id}
-	// PUT localhost:8080/api/produk/{id}
-	// DELETE localhost:8080/api/produk/{id}
-	http.HandleFunc("/api/produk/", func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/api/produk/" {
-			handleProdukCollection(w, r)
-			return
-		}
-		if r.Method == "GET" {
-			getProdukByID(w, r)
-		} else if r.Method == "PUT" {
-			updateProduk(w, r)
-		} else if r.Method == "DELETE" {
-			deleteProduk(w, r)
-		}
-	})
 
-	// GET localhost:8080/api/produk
-	// POST localhost:8080/api/produk
-	http.HandleFunc("/api/produk", func(w http.ResponseWriter, r *http.Request) {
-		handleProdukCollection(w, r)
-	})
+	viper.AutomaticEnv()
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+
+	if _, err := os.Stat(".env"); err == nil {
+		viper.SetConfigFile(".env")
+		_ = viper.ReadInConfig()
+	}
+
+	config := Config{
+		Port:   viper.GetString("PORT"),
+		DBConn: viper.GetString("DB_CONN"),
+	}
+
+	// Setup database
+	db, err := database.InitDB(config.DBConn)
+	if err != nil {
+		log.Fatal("Failed to initialize database:", err)
+	}
+	defer db.Close()
+
+	//Injection Dependency
+	productRepo := repositories.NewProductRepository(db)
+	productService := services.NewProductService(productRepo)
+	productHandler := handlers.NewProductHandler(productService)
+
+	// Setup routes
+	http.HandleFunc("/api/produk", productHandler.HandleProducts)
+	http.HandleFunc("/api/produk/", productHandler.HandleProductByID)
 
 	// GET localhost:8080/api/kategori/{id}
 	// PUT localhost:8080/api/kategori/{id}
@@ -299,10 +317,11 @@ func main() {
 		})
 	})
 
-	fmt.Println("Server running di localhost:8080")
+	fmt.Println("Server running di localhost:" + config.Port)
 
-	err := http.ListenAndServe(":8080", nil)
+	err = http.ListenAndServe(":"+config.Port, nil)
 	if err != nil {
 		fmt.Println("gagal running server")
 	}
+
 }
