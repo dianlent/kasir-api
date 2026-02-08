@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"kasir-api/models"
+	"time"
 )
 
 type TransactionRepository struct {
@@ -75,5 +76,78 @@ func (repo *TransactionRepository) CreateTransaction(items []models.CheckoutItem
 		ID:          transactionID,
 		TotalAmount: totalAmount,
 		Details:     details,
+	}, nil
+}
+
+func (repo *TransactionRepository) GetTodayReport() (*models.TodayReport, error) {
+	rows, err := repo.db.Query("SELECT id, total_amount, created_at FROM transactions WHERE created_at::date = CURRENT_DATE ORDER BY created_at DESC")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	transactions := make([]models.Transaction, 0)
+	totalAmount := 0
+	totalTransactions := 0
+
+	for rows.Next() {
+		var tx models.Transaction
+		if err := rows.Scan(&tx.ID, &tx.TotalAmount, &tx.CreatedAt); err != nil {
+			return nil, err
+		}
+
+		totalAmount += tx.TotalAmount
+		totalTransactions++
+		transactions = append(transactions, tx)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return &models.TodayReport{
+		Date:              time.Now().Format("2006-01-02"),
+		TotalAmount:       totalAmount,
+		TotalTransactions: totalTransactions,
+		Transactions:      transactions,
+	}, nil
+}
+
+func (repo *TransactionRepository) GetReport(startDate time.Time, endDate time.Time) (*models.DateRangeReport, error) {
+	endExclusive := endDate.AddDate(0, 0, 1)
+	rows, err := repo.db.Query(
+		"SELECT id, total_amount, created_at FROM transactions WHERE created_at >= $1 AND created_at < $2 ORDER BY created_at DESC",
+		startDate, endExclusive,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	transactions := make([]models.Transaction, 0)
+	totalAmount := 0
+	totalTransactions := 0
+
+	for rows.Next() {
+		var tx models.Transaction
+		if err := rows.Scan(&tx.ID, &tx.TotalAmount, &tx.CreatedAt); err != nil {
+			return nil, err
+		}
+
+		totalAmount += tx.TotalAmount
+		totalTransactions++
+		transactions = append(transactions, tx)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return &models.DateRangeReport{
+		StartDate:         startDate.Format("2006-01-02"),
+		EndDate:           endDate.Format("2006-01-02"),
+		TotalAmount:       totalAmount,
+		TotalTransactions: totalTransactions,
+		Transactions:      transactions,
 	}, nil
 }
